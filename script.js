@@ -51,7 +51,13 @@ const done=()=>S.matches.filter(m=>!['scheduled','live'].includes(m.status)).rev
 const grid=(arr,fn,key,e)=>arr.length?`<div class="cards">${arr.map(fn).join('')}</div>`:state(key,0,e);
 const list=(x)=>x?String(x).split(/\n+/).map(s=>`<p>${esc(s)}</p>`).join(''):'';
 const VIEWS={
- home:()=>{const c=S.settings.club||{};return `<div class="container"><section class="hero"><div><div class="eyebrow">PAVO CLUB</div><h1>${tr('heroT')}</h1><p>${tr('heroP')}</p><div class="hero-actions"><a class="btn btn-gold" href="#players">${tr('explore')}</a><a class="btn btn-outline" href="#matches">${tr('matches')}</a></div></div><div class="hero-emblem" aria-hidden="true">P</div></section>
+ home:()=>{const c=S.settings.club||{};return `<div class="container"><section class="hero"><div><div class="eyebrow">PAVO CLUB</div><h1>${tr('heroT')}</h1><p>${tr('heroP')}</p><div class="hero-actions"><a class="btn btn-gold" href="#players">${tr('explore')}</a><a class="btn btn-outline" href="#matches">${tr('matches')}</a></div></div><div class="hero-emblem" aria-hidden="true">
+  <img
+    class="hero-logo"
+    src="pavo%20logo.jpg.jpeg"
+    alt=""
+  >
+</div>
  <section class="section">${head(tr('latest'),'news')}${grid(S.news.slice(0,3),newsCard,'news','emptyN')}</section>
  <section class="section">${head(tr('upcoming'),'matches')}${grid(upc().slice(0,3),matchCard,'matches','emptyM')}</section>
  <section class="section">${head(tr('squad'),'players')}${grid(S.players.slice(0,4),playerCard,'players','emptyP')}</section>
