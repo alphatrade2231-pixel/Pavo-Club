@@ -21,33 +21,37 @@ const SET=[['hero','Home page banner',[['title_ar','Headline (Arabic)','text'],[
 ['contact','Contact',[['email','Email','email'],['phone','Phone','text']]],
 ['social','Social links (full https:// URLs)',[['instagram','Instagram','url'],['facebook','Facebook','url'],['x','X (Twitter)','url'],['youtube','YouTube','url']]]];
 let settings={};
-function renderSettings(){$('#setForm').innerHTML=SET.map(([g,t,fs])=>`<fieldset><legend>${t}</legend>${fs.map(([k,l,ty])=>{const v=esc((settings[g]||{})[k]);return ty==='textarea'?`<label>${l}<textarea name="${g}.${k}">${v}</textarea></label>`:`<label>${l}<input type="${ty}" name="${g}.${k}" value="${v}"></label>`}).join('')}</fieldset>`).join('')+'<div class="lineup-actions"><button class="btn btn-gold" type="submit">Save site content</button><span id="setMsg" class="form-message" role="status"></span></div>'}
+function renderSettings(){const sf=$('#setForm');if(!sf)return;sf.innerHTML=SET.map(([g,t,fs])=>`<fieldset><legend>${t}</legend>${fs.map(([k,l,ty])=>{const v=esc((settings[g]||{})[k]);return ty==='textarea'?`<label>${l}<textarea name="${g}.${k}">${v}</textarea></label>`:`<label>${l}<input type="${ty}" name="${g}.${k}" value="${v}"></label>`}).join('')}</fieldset>`).join('')+'<div class="lineup-actions"><button class="btn btn-gold" type="submit">Save site content</button><span id="setMsg" class="form-message" role="status"></span></div>'}
 async function saveSettings(e){e.preventDefault();const out={};for(const [k,v] of new FormData(e.currentTarget).entries()){const [g,f]=k.split('.');(out[g]=out[g]||{})[f]=String(v).trim()}
  const {error}=await supabaseClient.from('site_settings').upsert(Object.entries(out).map(([key,value])=>({key,value,is_public:true})),{onConflict:'key'});
  $('#setMsg').textContent=error?error.message:'Saved. The public site is updated.';if(!error){settings=out;toast('Site content saved')}}
-async function start(){
- $('#setForm').addEventListener('submit',saveSettings);
- document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));$('#delLnBtn').addEventListener('click',delLineup);
- $('#loginForm').addEventListener('submit',login);
- $('#logoutBtn').addEventListener('click',async()=>{await supabaseClient.auth.signOut();showLogin()});
+const on=(s,ev,fn)=>{const el=document.querySelector(s);if(el)el.addEventListener(ev,fn)};
+async function start(){const lf=document.querySelector('#loginForm');if(lf)lf.addEventListener('submit',login);try{await start2()}catch(err){console.error(err);const m=document.querySelector('#loginMsg');if(m)m.textContent='Startup error: '+(err.message||err)}}
+async function start2(){
+ on('#setForm','submit',saveSettings);
+ document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));on('#delLnBtn','click',delLineup);
+
+ on('#logoutBtn','click',async()=>{await supabaseClient.auth.signOut();showLogin()});
  document.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>openEditor(b.dataset.add)));
- $('#adminPitch').addEventListener('click',pitchClick);$('#pSearch').addEventListener('input',drawAvail);
- $('#formation').addEventListener('change',applyFormation);$('#loadBtn').addEventListener('click',loadLineup);
- $('#draftBtn').addEventListener('click',()=>saveLineup('draft'));$('#pubBtn').addEventListener('click',()=>saveLineup('published'));
- $('#newBtn').addEventListener('click',()=>{placed=[];activeId=null;$('#lnSaved').value='';drawPitch();drawAvail()});
+ on('#adminPitch','click',pitchClick);on('#pSearch','input',drawAvail);
+ on('#formation','change',applyFormation);on('#loadBtn','click',loadLineup);
+ on('#draftBtn','click',()=>saveLineup('draft'));on('#pubBtn','click',()=>saveLineup('published'));
+ on('#newBtn','click',()=>{placed=[];activeId=null;$('#lnSaved').value='';drawPitch();drawAvail()});
  if(!supabaseClient){$('#loginMsg').textContent='Supabase is not configured. Check supabase.js.';return}
  const {data:{session}}=await supabaseClient.auth.getSession();if(session)await verify(session.user);
  supabaseClient.auth.onAuthStateChange((ev,s)=>{if(ev==='SIGNED_OUT')showLogin()});
 }
-async function login(e){e.preventDefault();$('#loginMsg').textContent='Signing in…';const fd=new FormData(e.currentTarget);
- const {data,error}=await supabaseClient.auth.signInWithPassword({email:fd.get('email'),password:fd.get('password')});
- if(error){$('#loginMsg').textContent=error.message;return}await verify(data.user)}
-async function verify(user){
- const {data,error}=await supabaseClient.from('admin_profiles').select('*').eq('user_id',user.id).eq('is_active',true).maybeSingle();
- if(error||!data||!['super_admin','admin'].includes(data.role)){await supabaseClient.auth.signOut();$('#loginMsg').textContent='This account is not an active admin in admin_profiles.';return}
+async function login(e){e.preventDefault();const msg=t=>$('#loginMsg').textContent=t;msg('Signing in…');const fd=new FormData(e.currentTarget);
+ try{const {data,error}=await supabaseClient.auth.signInWithPassword({email:String(fd.get('email')).trim(),password:fd.get('password')});
+  if(error){msg(/invalid login/i.test(error.message)?'Wrong email or password.':/not confirmed/i.test(error.message)?'Email not confirmed. In Supabase: Authentication > Users, confirm this user (or recreate it with Auto Confirm User).':error.message);return}
+  await verify(data.user)}catch(err){msg('Login failed: '+(err.message||err))}}
+async function verify(user){const msg=t=>$('#loginMsg').textContent=t;
+ const {data,error}=await supabaseClient.from('admin_profiles').select('*').eq('user_id',user.id).maybeSingle();
+ if(error){await supabaseClient.auth.signOut();msg('Could not read admin_profiles: '+error.message+' (run supabase-schema.sql in full).');return}
+ if(!data){await supabaseClient.auth.signOut();msg('Signed in, but this account is not in admin_profiles. Run the INSERT INTO admin_profiles SQL with this exact email.');return}
+ if(!data.is_active||!['super_admin','admin'].includes(data.role)){await supabaseClient.auth.signOut();msg('This account is not an active admin (role: '+data.role+').');return}
  $('#loginPanel').hidden=true;$('#dashboard').hidden=false;$('#logoutBtn').hidden=false;$('#welcome').textContent=`Signed in as ${data.display_name||user.email} (${data.role})`;
- await loadAll();showTab('overview');
-}
+ try{await loadAll();showTab('overview')}catch(err){console.error(err);toast('Loaded with errors: '+(err.message||err))}}
 function showLogin(){$('#dashboard').hidden=true;$('#loginPanel').hidden=false;$('#logoutBtn').hidden=true}
 async function rows(table,order,asc=false){const {data,error}=await supabaseClient.from(table).select('*').order(order,{ascending:asc});if(error){toast(`${table}: ${error.message}`);return []}return data||[]}
 async function loadAll(){
