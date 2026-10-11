@@ -13,19 +13,18 @@
 <button class="btn btn-gold" type="submit">Sign in</button><p id="loginMsg" class="form-message" role="alert"></p></form></section>
 <section id="dashboard" hidden>
 <div class="admin-welcome"><div><h1>Dashboard</h1><p id="welcome" class="muted"></p></div></div>
-<nav class="tabs" id="tabs" aria-label="Sections"><button class="tab" data-tab="overview">Overview</button><button class="tab" data-tab="players">Players</button><button class="tab" data-tab="matches">Matches</button><button class="tab" data-tab="news">News</button><button class="tab" data-tab="lineup">Line-up</button></nav>
 <div class="admin-stats" id="stats"></div>
 <div class="admin-grid">
-<section class="admin-panel" data-panel="players" hidden><div class="panel-heading"><h2>Players</h2><button class="btn btn-gold" data-add="player">+ Add player</button></div><div id="tPlayer" class="table-wrap"></div></section>
-<section class="admin-panel" data-panel="matches" hidden><div class="panel-heading"><h2>Matches</h2><button class="btn btn-gold" data-add="match">+ Add match</button></div><div id="tMatch" class="table-wrap"></div></section>
-<section class="admin-panel" data-panel="news" hidden><div class="panel-heading"><h2>News</h2><button class="btn btn-gold" data-add="news">+ Add story</button></div><div id="tNews" class="table-wrap"></div></section>
-<section class="admin-panel" data-panel="lineup" hidden><div class="panel-heading"><h2>Line-up editor</h2></div>
+<section class="admin-panel"><div class="panel-heading"><h2>Players</h2><button class="btn btn-gold" data-add="player">+ Add player</button></div><div id="tPlayer" class="table-wrap"></div></section>
+<section class="admin-panel"><div class="panel-heading"><h2>Matches</h2><button class="btn btn-gold" data-add="match">+ Add match</button></div><div id="tMatch" class="table-wrap"></div></section>
+<section class="admin-panel"><div class="panel-heading"><h2>News</h2><button class="btn btn-gold" data-add="news">+ Add story</button></div><div id="tNews" class="table-wrap"></div></section>
+<section class="admin-panel"><div class="panel-heading"><h2>Line-up editor</h2></div>
 <div class="lineup-controls"><label>Name (English)<input id="lnEn" value="First Team"></label><label>Name (Arabic)<input id="lnAr" value="تشكيلة الفريق الأول"></label>
 <label>Formation<select id="formation"><option>4-3-3</option><option>4-2-3-1</option><option>4-4-2</option><option>3-5-2</option></select></label>
 <label>Match<select id="lnMatch"><option value="">No match linked</option></select></label>
 <label>Saved line-ups<select id="lnSaved"><option value="">New line-up</option></select></label><button class="btn btn-outline" id="loadBtn" type="button">Load</button></div>
-<p class="muted">1) Pick a player. 2) Click the pitch to place them. Drag to move, × to remove, double-click to set the captain (C). Changing the formation re-arranges the placed players.</p>
+<p class="muted">1) Pick a player. 2) Click the pitch to place them. Drag a marker to move it; press × to remove it.</p>
 <div class="lineup-editor"><div><input id="pSearch" type="search" placeholder="Search players" aria-label="Search players"><div class="available" id="avail"></div></div>
 <div class="pitch-wrap"><div class="pitch" id="adminPitch"><div class="pitch-circle"></div><div class="pbox l"></div><div class="pbox r"></div><div class="gbox l"></div><div class="gbox r"></div></div></div></div>
-<div class="lineup-actions"><button class="btn btn-outline" id="draftBtn" type="button">Save draft</button><button class="btn btn-gold" id="pubBtn" type="button">Publish line-up</button><button class="btn btn-outline" id="newBtn" type="button">Clear</button><button class="btn btn-outline" id="delLnBtn" type="button">Delete line-up</button><span id="lnMsg" class="form-message" role="status"></span></div></section>
+<div class="lineup-actions"><button class="btn btn-outline" id="draftBtn" type="button">Save draft</button><button class="btn btn-gold" id="pubBtn" type="button">Publish line-up</button><button class="btn btn-outline" id="newBtn" type="button">Clear</button><span id="lnMsg" class="form-message" role="status"></span></div></section>
 </div></section></main><div id="modalRoot"></div><div id="toast" role="status"></div></body></html>
