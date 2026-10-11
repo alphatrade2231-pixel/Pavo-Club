@@ -1,9 +1,7 @@
-/* PAVO Club — Supabase client configuration.
-   Replace the two placeholders with your Supabase Project URL and publishable/anon key.
-   Never put a service_role or secret key in browser code. */
+/* PAVO Club — Supabase configuration (the ONLY place to edit).
+   URL = Project URL only (https://xxxx.supabase.co) — NO /rest/v1/ and no trailing slash.
+   Key = publishable/anon key. Never put a secret or service_role key here. */
 const SUPABASE_URL = 'https://slxbpxnwgfiuktkmfjqp.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_ZwXt23LTUN8Sfc_MRNFfGw_Tri2zabK';
-const supabaseReady = !SUPABASE_URL.includes('YOUR-PROJECT-REF') && !SUPABASE_ANON_KEY.includes('YOUR_SUPABASE');
-const supabaseClient = supabaseReady
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : null;
+const supabaseClient = (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
