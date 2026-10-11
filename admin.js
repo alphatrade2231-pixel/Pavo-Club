@@ -56,7 +56,38 @@ function tables(){
  document.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>del(b.dataset.del,b.dataset.id)));
 }
 function field(f,v){const [n,l,t,x]=f;if(t==='checkbox')return `<label class="check-label"><input type="checkbox" name="${n}" ${v?'checked':''}> ${l}</label>`;
- if(t==='image'){const u=imgUrl(v);return `<label>${l}<span class="imgbox"><img class="preview" id="pv_${n}" src="${esc(u)}" alt="" ${u?'':'hidden'}><input type="file" accept="image/*" name="file_${n}" data-pv="pv_${n}"></span><input name="${n}" type="text" value="${esc(v)}" placeholder="Choose a file above, or paste an image URL / storage path"></label>`}
+ if (t === 'image') {
+  const u = imgUrl(v);
+
+  return `
+    <label class="image-upload-field">
+      ${l}
+
+      <span class="imgbox">
+        <img
+          class="preview"
+          id="pv_${n}"
+          src="${esc(u)}"
+          alt="معاينة الصورة"
+          ${u ? '' : 'hidden'}
+        >
+
+        <span class="upload-hint">
+          ${u ? 'اختار صورة جديدة لاستبدال الحالية' : 'اختار صورة من جهازك'}
+        </span>
+
+        <input
+          type="file"
+          accept="image/*"
+          name="file_${n}"
+          data-pv="pv_${n}"
+        >
+      </span>
+
+      <small>الصور بصيغة JPG أو PNG أو WebP، بحد أقصى 5 ميجابايت.</small>
+    </label>
+  `;
+} `<label>${l}<span class="imgbox"><img class="preview" id="pv_${n}" src="${esc(u)}" alt="" ${u?'':'hidden'}><input type="file" accept="image/*" name="file_${n}" data-pv="pv_${n}"></span><input name="${n}" type="text" value="${esc(v)}" placeholder="Choose a file above, or paste an image URL / storage path"></label>`}
  if(t==='select')return `<label>${l}<select name="${n}">${x.map(o=>`<option ${v===o?'selected':''}>${o}</option>`).join('')}</select></label>`;
  if(t==='textarea')return `<label>${l}<textarea name="${n}">${esc(v)}</textarea></label>`;
  if(t==='datetime-local'&&v){const d=new Date(v);v=new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,16)}
