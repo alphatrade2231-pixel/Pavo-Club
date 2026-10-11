@@ -62,6 +62,32 @@ nav{display:flex;gap:4px;flex:1}nav a{padding:8px 12px;color:var(--muted);border
   width: 44px;
   height: 44px;
   object-fit: contain;
+/* PAVO CLUB - Logo sizing and alignment */
+.site-header .brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.site-header .brand .club-logo {
+  display: block;
+  width: 42px;
+  height: 42px;
+  max-width: 42px;
+  max-height: 42px;
+  object-fit: contain;
+  object-position: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.site-header .brand > span {
+  display: inline-block;
+  white-space: nowrap;
+}
+
   display: block;
   flex-shrink: 0;
 }
