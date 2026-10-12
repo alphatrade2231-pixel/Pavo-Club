@@ -63,9 +63,10 @@ async function loadAll(){
  $('#lnSaved').innerHTML='<option value="">New line-up</option>'+lineups.map(l=>`<option value="${esc(l.id)}">${esc(l.name_en||l.name_ar)} (${esc(l.status)}${l.is_current?', current':''})</option>`).join('');
  drawAvail();drawPitch();
 }
-function tbl(type,head,rs){return `<table class="data-table"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}<th></th></tr></thead><tbody>${rs.map(r=>`<tr>${r[1].map(c=>`<td>${esc(c)}</td>`).join('')}<td><div class="row-actions"><button class="small-btn" data-edit="${type}" data-id="${esc(r[0])}">Edit</button><button class="small-btn danger" data-del="${type}" data-id="${esc(r[0])}">Delete</button></div></td></tr>`).join('')||`<tr><td colspan="${head.length+1}">No records yet.</td></tr>`}</tbody></table>`}
+const thumbHtml=p=>{const u=imgUrl(p.photo_path);return u?`<img class="thumb" draggable="false" src="${esc(u)}" alt="" onerror="this.remove()">`:''};
+function tbl(type,head,rs){return `<table class="data-table"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}<th></th></tr></thead><tbody>${rs.map(r=>`<tr>${r[1].map(c=>`<td>${c&&c.html?c.html:esc(c)}</td>`).join('')}<td><div class="row-actions"><button class="small-btn" data-edit="${type}" data-id="${esc(r[0])}">Edit</button><button class="small-btn danger" data-del="${type}" data-id="${esc(r[0])}">Delete</button></div></td></tr>`).join('')||`<tr><td colspan="${head.length+1}">No records yet.</td></tr>`}</tbody></table>`}
 function tables(){
- $('#tPlayer').innerHTML=tbl('player',['Name','No.','Active'],players.map(p=>[p.id,[p.full_name_en||p.full_name_ar,p.shirt_number??'—',p.is_active?'Yes':'No']]));
+ $('#tPlayer').innerHTML=tbl('player',['Name','No.','Active'],players.map(p=>[p.id,[{html:thumbHtml(p)+esc(p.full_name_en||p.full_name_ar)},p.shirt_number??'—',p.is_active?'Yes':'No']]));
  $('#tMatch').innerHTML=tbl('match',['Opponent','Date','Status','Public'],matches.map(m=>[m.id,[m.opponent_name_en||m.opponent_name_ar,m.kickoff_at?new Date(m.kickoff_at).toLocaleDateString():'',m.status,m.is_published?'Yes':'No']]));
  $('#tNews').innerHTML=tbl('news',['Story','Status'],news.map(n=>[n.id,[n.title_en||n.title_ar,n.status]]));
  document.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>openEditor(b.dataset.edit,b.dataset.id)));
@@ -89,7 +90,7 @@ function openEditor(type,id){
 document.querySelectorAll('[data-pv]').forEach(i=>{const n=i.dataset.pv,p=$('#pv_'+n),st=$('#st_'+n),inp=document.querySelector(`input[name="${n}"]`),save=$('#rf button[type=submit]'),open=()=>i.click();
   $('#pick_'+n).addEventListener('click',open);p.addEventListener('click',open);
   i.addEventListener('change',async()=>{const f=i.files[0];if(!f)return;p.src=URL.createObjectURL(f);p.hidden=false;st.textContent='Uploading…';save.disabled=true;
-   try{inp.value=await uploadImage(f,s.table,n==='cover_path'?1600:1000);st.textContent='Uploaded ✓'}catch(err){st.textContent='Upload failed: '+(err.message||err);i.value=''}finally{save.disabled=false}});
+   try{inp.value=await uploadImage(f,s.table,n==='cover_path'?1600:1000);st.textContent='Uploaded ✓';try{const r=await fetch(imgUrl(inp.value),{method:'HEAD'});if(!r.ok)st.textContent='Uploaded, but NOT publicly readable: make bucket pavo-media Public (run the SQL), then retry.'}catch{}}catch(err){st.textContent='Upload failed: '+(err.message||err);i.value=''}finally{save.disabled=false}});
   $('#rm_'+n).addEventListener('click',()=>{inp.value='';i.value='';p.hidden=true;st.textContent=''})});
  $('#rf').onsubmit=async e=>{e.preventDefault();const fd=new FormData(e.currentTarget),row={};
   for(const [n,,t] of s.fields){if(t==='checkbox')row[n]=fd.has(n);else if(t==='number')row[n]=fd.get(n)===''?null:Number(fd.get(n));else if(t==='datetime-local')row[n]=fd.get(n)?new Date(fd.get(n)).toISOString():null;else row[n]=(fd.get(n)||'').trim()||null}
@@ -104,25 +105,32 @@ async function del(type,id){const s=SCH[type];if(!confirm(`Delete this ${s.title
 
 /* ---- line-up editor ---- */
 function drawAvail(){const k=($('#pSearch').value||'').toLowerCase(),used=new Set(placed.map(p=>p.player_id));
- $('#avail').innerHTML=players.filter(p=>p.is_active&&`${p.full_name_en||''} ${p.full_name_ar||''} ${p.shirt_number??''}`.toLowerCase().includes(k)).map(p=>`<button type="button" class="pick ${sel===p.id?'sel':''} ${used.has(p.id)?'used':''}" data-pick="${esc(p.id)}">#${esc(p.shirt_number??'—')} ${esc(p.full_name_en||p.full_name_ar)}</button>`).join('')||'<p class="muted">No active players.</p>';
- document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{sel=b.dataset.pick;drawAvail()})}
+ $('#avail').innerHTML=players.filter(p=>p.is_active&&`${p.full_name_en||''} ${p.full_name_ar||''} ${p.shirt_number??''}`.toLowerCase().includes(k)).map(p=>{const u=imgUrl(p.photo_path),on=used.has(p.id);return `<button type="button" class="pick ${on?'used':''}" data-pick="${esc(p.id)}">${u?`<img class="thumb" draggable="false" src="${esc(u)}" alt="" onerror="this.remove()">`:''}<span>#${esc(p.shirt_number??'—')} ${esc(p.full_name_en||p.full_name_ar)}</span>${on?'<b>✓</b>':''}</button>`}).join('')||'<p class="muted">No active players.</p>';
+ document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>togglePlayer(b.dataset.pick))}
+function togglePlayer(id){const ex=placed.find(p=>p.player_id===id);
+ if(ex)placed=placed.filter(p=>p!==ex);
+ else{if(placed.length>=11){toast('A line-up has at most 11 starters.');return}
+  const slots=FORM[$('#formation').value]||FORM['4-3-3'],taken=placed.map(p=>p.slot);let i=0;while(taken.includes(i)&&i<10)i++;const c=slots[i]||[50,50];
+  placed.push({player_id:id,slot:i,x_position:c[0],y_position:c[1],tactical_position:null})}
+ drawPitch();drawAvail()}
 function drawPitch(){const pitch=$('#adminPitch');pitch.querySelectorAll('.pitch-player').forEach(x=>x.remove());
  placed.forEach(pl=>{const p=players.find(x=>x.id===pl.player_id);if(!p)return;const u=imgUrl(p.photo_path),el=document.createElement('div');
   el.className='pitch-player'+(u?' has-photo':'');el.style.left=pl.x_position+'%';el.style.top=pl.y_position+'%';
-  el.innerHTML=`${pl.is_captain?'<span class="cap">C</span>':''}<button class="x" type="button" aria-label="Remove">×</button><span class="mk"><span class="av">${u?`<img src="${esc(u)}" alt="" onerror="this.remove()">`:''}</span><span class="shirt">${esc(p.shirt_number??'')}</span></span><small>${esc(p.full_name_en||p.full_name_ar)}</small>`;
-  el.addEventListener('click',e=>e.stopPropagation());
-  el.addEventListener('dblclick',e=>{e.stopPropagation();const was=pl.is_captain;placed.forEach(x=>x.is_captain=false);pl.is_captain=!was;drawPitch()});
+  el.innerHTML=`<button class="x" type="button" aria-label="Remove">×</button><button class="cbtn ${pl.is_captain?'on':''}" type="button" aria-label="Captain">C</button><span class="mk"><span class="av">${u?`<img draggable="false" src="${esc(u)}" alt="">`:''}</span><span class="shirt">${esc(p.shirt_number??'')}</span></span><small>${esc(p.full_name_en||p.full_name_ar)}</small>`;
+  const img=el.querySelector('img');if(img)img.addEventListener('error',()=>{img.remove();el.classList.remove('has-photo')});
   el.querySelector('.x').addEventListener('click',e=>{e.stopPropagation();placed=placed.filter(x=>x!==pl);drawPitch();drawAvail()});
-  let drag=false;el.addEventListener('pointerdown',e=>{if(e.target.closest('.x'))return;drag=true;el.setPointerCapture(e.pointerId)});
-  el.addEventListener('pointermove',e=>{if(!drag)return;const r=pitch.getBoundingClientRect();pl.x_position=Math.round(clamp((e.clientX-r.left)/r.width*100,4,96));pl.y_position=Math.round(clamp((e.clientY-r.top)/r.height*100,4,96));el.style.left=pl.x_position+'%';el.style.top=pl.y_position+'%'});
-  el.addEventListener('pointerup',()=>drag=false);pitch.appendChild(el)})}
-function pitchClick(e){if(!sel){toast('Pick a player from the list first.');return}const r=e.currentTarget.getBoundingClientRect();
- placed=placed.filter(p=>p.player_id!==sel);if(placed.length>=11){toast('A line-up has at most 11 starters.');return}
- placed.push({player_id:sel,x_position:Math.round(clamp((e.clientX-r.left)/r.width*100,4,96)),y_position:Math.round(clamp((e.clientY-r.top)/r.height*100,4,96)),tactical_position:null});sel=null;drawPitch();drawAvail()}
-function applyFormation(){const c=FORM[$('#formation').value]||FORM['4-3-3'];placed.forEach((p,i)=>{if(c[i]){p.x_position=c[i][0];p.y_position=c[i][1]}});drawPitch()}
+  el.querySelector('.cbtn').addEventListener('click',e=>{e.stopPropagation();const was=pl.is_captain;placed.forEach(x=>x.is_captain=false);pl.is_captain=!was;drawPitch()});
+  el.addEventListener('click',e=>e.stopPropagation());
+  el.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('dragging');
+   const move=ev=>{const r=pitch.getBoundingClientRect();pl.x_position=Math.round(clamp((ev.clientX-r.left)/r.width*100,4,96));pl.y_position=Math.round(clamp((ev.clientY-r.top)/r.height*100,4,96));el.style.left=pl.x_position+'%';el.style.top=pl.y_position+'%'};
+   const up=()=>{el.classList.remove('dragging');el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);el.removeEventListener('pointercancel',up)};
+   el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);move(e)});
+  pitch.appendChild(el)})}
+function pitchClick(){}
+function applyFormation(){const c=FORM[$('#formation').value]||FORM['4-3-3'];placed.forEach((p,i)=>{p.slot=i;if(c[i]){p.x_position=c[i][0];p.y_position=c[i][1]}});drawPitch()}
 async function loadLineup(){const id=$('#lnSaved').value;const lp=lineups.find(l=>l.id===id);if(!lp){toast('Choose a saved line-up first.');return}
  const {data,error}=await supabaseClient.from('lineup_players').select('*').eq('lineup_id',id).order('sort_order');if(error){toast(error.message);return}
- activeId=id;placed=(data||[]).filter(r=>players.some(p=>p.id===r.player_id)).map(r=>({player_id:r.player_id,x_position:Number(r.x_position),y_position:Number(r.y_position),tactical_position:r.tactical_position,is_captain:!!r.is_captain}));
+ activeId=id;placed=(data||[]).filter(r=>players.some(p=>p.id===r.player_id)).map((r,i)=>({slot:i,player_id:r.player_id,x_position:Number(r.x_position),y_position:Number(r.y_position),tactical_position:r.tactical_position,is_captain:!!r.is_captain}));
  $('#lnEn').value=lp.name_en||'';$('#lnAr').value=lp.name_ar||'';$('#formation').value=lp.formation_code||'4-3-3';$('#lnMatch').value=lp.match_id||'';drawPitch();drawAvail();toast('Line-up loaded')}
 async function saveLineup(status){
  if(!placed.length){toast('Place at least one player first.');return}
