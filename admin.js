@@ -13,7 +13,7 @@ const SCH={
 const store=()=>({players,matches,news});
 const FORM={'4-3-3':[[8,50],[26,18],[26,39],[26,61],[26,82],[49,25],[49,50],[49,75],[73,18],[80,50],[73,82]],'4-2-3-1':[[8,50],[26,18],[26,39],[26,61],[26,82],[43,37],[43,63],[62,18],[62,50],[62,82],[79,50]],'4-4-2':[[8,50],[26,18],[26,39],[26,61],[26,82],[50,18],[50,39],[50,61],[50,82],[75,35],[75,65]],'3-5-2':[[8,50],[28,25],[28,50],[28,75],[51,12],[51,31],[51,50],[51,69],[51,88],[76,35],[76,65]]};
 
-function showTab(t){document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==t);$('#stats').hidden=t!=='overview'}
+function showTab(t){try{localStorage.setItem('pavo-tab',t)}catch{}document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==t);$('#stats').hidden=t!=='overview'}
 async function delLineup(){if(!activeId){toast('Load a saved line-up first.');return}if(!confirm('Delete this line-up? This cannot be undone.'))return;const {error}=await supabaseClient.from('lineups').delete().eq('id',activeId);if(error){toast(error.message);return}activeId=null;placed=[];toast('Line-up deleted');await loadAll()}
 
 const SET=[['hero','Home page banner',[['title_ar','Headline (Arabic)','text'],['title_en','Headline (English)','text'],['text_ar','Intro (Arabic)','textarea'],['text_en','Intro (English)','textarea']]],
@@ -28,6 +28,8 @@ async function saveSettings(e){e.preventDefault();const out={};for(const [k,v] o
 const on=(s,ev,fn)=>{const el=document.querySelector(s);if(el)el.addEventListener(ev,fn)};
 async function start(){const lf=document.querySelector('#loginForm');if(lf)lf.addEventListener('submit',login);try{await start2()}catch(err){console.error(err);const m=document.querySelector('#loginMsg');if(m)m.textContent='Startup error: '+(err.message||err)}}
 async function start2(){
+ on('#stats','click',e=>{const c=e.target.closest('[data-go]');if(c)showTab(c.dataset.go)});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'){const m=$('#modalRoot');if(m)m.innerHTML=''}});
  on('#setForm','submit',saveSettings);
  document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));on('#delLnBtn','click',delLineup);
 
@@ -51,12 +53,12 @@ async function verify(user){const msg=t=>$('#loginMsg').textContent=t;
  if(!data){await supabaseClient.auth.signOut();msg('Signed in, but this account is not in admin_profiles. Run the INSERT INTO admin_profiles SQL with this exact email.');return}
  if(!data.is_active||!['super_admin','admin'].includes(data.role)){await supabaseClient.auth.signOut();msg('This account is not an active admin (role: '+data.role+').');return}
  $('#loginPanel').hidden=true;$('#dashboard').hidden=false;$('#logoutBtn').hidden=false;$('#welcome').textContent=`Signed in as ${data.display_name||user.email} (${data.role})`;
- try{await loadAll();showTab('overview')}catch(err){console.error(err);toast('Loaded with errors: '+(err.message||err))}}
+ try{await loadAll();showTab((()=>{try{const t=localStorage.getItem('pavo-tab');return['overview','players','matches','news','lineup','settings'].includes(t)?t:'overview'}catch{return'overview'}})())}catch(err){console.error(err);toast('Loaded with errors: '+(err.message||err))}}
 function showLogin(){$('#dashboard').hidden=true;$('#loginPanel').hidden=false;$('#logoutBtn').hidden=true}
 async function rows(table,order,asc=false){const {data,error}=await supabaseClient.from(table).select('*').order(order,{ascending:asc});if(error){toast(`${table}: ${error.message}`);return []}return data||[]}
 async function loadAll(){
  [players,matches,news,lineups]=await Promise.all([rows('players','shirt_number',true),rows('matches','kickoff_at'),rows('news','created_at'),rows('lineups','updated_at')]);
- $('#stats').innerHTML=[['Players',players.length],['Matches',matches.length],['News',news.length],['Line-ups',lineups.length]].map(x=>`<div class="admin-stat"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join('');
+ $('#stats').innerHTML=[['Players',players.length,'players','👥'],['Matches',matches.length,'matches','📅'],['News',news.length,'news','📰'],['Line-ups',lineups.length,'lineup','⚽']].map(x=>`<div class="admin-stat" data-go="${x[2]}" role="button" tabindex="0"><span>${x[3]} ${x[0]}</span><strong>${x[1]}</strong></div>`).join('');
  tables();
  {const st=await rows('site_settings','key',true);settings=Object.fromEntries(st.map(x=>[x.key,x.value||{}]));renderSettings()}
  $('#lnMatch').innerHTML='<option value="">No match linked</option>'+matches.map(m=>`<option value="${esc(m.id)}">${esc(m.opponent_name_en||m.opponent_name_ar)}</option>`).join('');
