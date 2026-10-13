@@ -1,3 +1,4 @@
+const SETUP_SQL='insert into storage.buckets (id,name,public,file_size_limit,allowed_mime_types)\nvalues (\'pavo-media\',\'pavo-media\',true,8388608,array[\'image/jpeg\',\'image/png\',\'image/webp\',\'image/gif\'])\non conflict (id) do update set public=true;\ndrop policy if exists "Public read pavo-media" on storage.objects;\ncreate policy "Public read pavo-media" on storage.objects for select using (bucket_id=\'pavo-media\');\ndrop policy if exists "Admins write pavo-media" on storage.objects;\ncreate policy "Admins write pavo-media" on storage.objects for all to authenticated\n using (bucket_id=\'pavo-media\' and public.is_admin()) with check (bucket_id=\'pavo-media\' and public.is_admin());\n';
 /* PAVO admin. Security: writes are enforced by Supabase RLS (public.is_admin()), not by this page. */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -13,7 +14,15 @@ const SCH={
 const store=()=>({players,matches,news});
 const FORM={'4-3-3':[[8,50],[26,18],[26,39],[26,61],[26,82],[49,25],[49,50],[49,75],[73,18],[80,50],[73,82]],'4-2-3-1':[[8,50],[26,18],[26,39],[26,61],[26,82],[43,37],[43,63],[62,18],[62,50],[62,82],[79,50]],'4-4-2':[[8,50],[26,18],[26,39],[26,61],[26,82],[50,18],[50,39],[50,61],[50,82],[75,35],[75,65]],'3-5-2':[[8,50],[28,25],[28,50],[28,75],[51,12],[51,31],[51,50],[51,69],[51,88],[76,35],[76,65]]};
 
-function showTab(t){try{localStorage.setItem('pavo-tab',t)}catch{}document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==t);$('#stats').hidden=t!=='overview'}
+const upErr=e=>{const m=String(e&&e.message||e);return /bucket not found/i.test(m)?'Photo storage is not set up yet. See the status card in Overview.':/row-level security|not authorized|policy/i.test(m)?'No permission to upload. Sign in with an admin account.':'Upload failed: '+m};
+async function renderHealth(){const el=$('#health');if(!el)return;
+ const act=players.filter(p=>p.is_active).length,pubM=matches.filter(m=>m.is_published).length,pubN=news.filter(n=>n.status==='published').length,cur=lineups.some(l=>l.status==='published'&&l.is_current);
+ let st=null;try{const {error}=await supabaseClient.storage.from('pavo-media').list('',{limit:1});if(error)st=String(error.message)}catch(e){st=String(e.message||e)}
+ const missing=st&&/not found/i.test(st);
+ const row=(ok,t,hint)=>`<li class="${ok?'ok':'warn'}"><b>${ok?'✓':'!'}</b><span>${t}${!ok&&hint?`<small>${hint}</small>`:''}</span></li>`;
+ el.innerHTML='<h2>Website status</h2><ul class="health">'+row(!st,'Photo storage',missing?'Not set up yet. The developer runs the storage setup once, then photos work from this page.':esc(st))+row(act>0,`${act} active players on the website`,'Add players or switch them to Active.')+row(pubM>0,`${pubM} published matches`,'Publish at least one match.')+row(pubN>0,`${pubN} published news stories`,'Set a story to Published.')+row(cur,'A published current line-up','Build a line-up and press Publish.')+'</ul>'+(missing?'<button class="btn btn-outline" id="copySql" type="button">Copy storage setup SQL</button>':'');
+ const b=$('#copySql');if(b)b.onclick=async()=>{try{await navigator.clipboard.writeText(SETUP_SQL);toast('SQL copied. Paste it in Supabase SQL Editor and press Run.')}catch{toast('Copy failed. Use the file supabase-storage-setup.sql')}}}
+function showTab(t){try{localStorage.setItem('pavo-tab',t)}catch{}document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==t);$('#stats').hidden=t!=='overview';{const h=$('#health');if(h)h.hidden=t!=='overview'}}
 async function delLineup(){if(!activeId){toast('Load a saved line-up first.');return}if(!confirm('Delete this line-up? This cannot be undone.'))return;const {error}=await supabaseClient.from('lineups').delete().eq('id',activeId);if(error){toast(error.message);return}activeId=null;placed=[];toast('Line-up deleted');await loadAll()}
 
 const SET=[['hero','Home page banner',[['title_ar','Headline (Arabic)','text'],['title_en','Headline (English)','text'],['text_ar','Intro (Arabic)','textarea'],['text_en','Intro (English)','textarea']]],
@@ -63,7 +72,7 @@ async function loadAll(){
  {const st=await rows('site_settings','key',true);settings=Object.fromEntries(st.map(x=>[x.key,x.value||{}]));renderSettings()}
  $('#lnMatch').innerHTML='<option value="">No match linked</option>'+matches.map(m=>`<option value="${esc(m.id)}">${esc(m.opponent_name_en||m.opponent_name_ar)}</option>`).join('');
  $('#lnSaved').innerHTML='<option value="">New line-up</option>'+lineups.map(l=>`<option value="${esc(l.id)}">${esc(l.name_en||l.name_ar)} (${esc(l.status)}${l.is_current?', current':''})</option>`).join('');
- drawAvail();drawPitch();
+ drawAvail();drawPitch();renderHealth();
 }
 const thumbHtml=p=>{const u=imgUrl(p.photo_path);return u?`<img class="thumb" draggable="false" src="${esc(u)}" alt="" onerror="this.remove()">`:''};
 function tbl(type,head,rs){return `<table class="data-table"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}<th></th></tr></thead><tbody>${rs.map(r=>`<tr>${r[1].map(c=>`<td>${c&&c.html?c.html:esc(c)}</td>`).join('')}<td><div class="row-actions"><button class="small-btn" data-edit="${type}" data-id="${esc(r[0])}">Edit</button><button class="small-btn danger" data-del="${type}" data-id="${esc(r[0])}">Delete</button></div></td></tr>`).join('')||`<tr><td colspan="${head.length+1}">No records yet.</td></tr>`}</tbody></table>`}
@@ -92,7 +101,7 @@ function openEditor(type,id){
 document.querySelectorAll('[data-pv]').forEach(i=>{const n=i.dataset.pv,p=$('#pv_'+n),st=$('#st_'+n),inp=document.querySelector(`input[name="${n}"]`),save=$('#rf button[type=submit]'),open=()=>i.click();
   $('#pick_'+n).addEventListener('click',open);p.addEventListener('click',open);
   i.addEventListener('change',async()=>{const f=i.files[0];if(!f)return;p.src=URL.createObjectURL(f);p.hidden=false;st.textContent='Uploading…';save.disabled=true;
-   try{inp.value=await uploadImage(f,s.table,n==='cover_path'?1600:1000);st.textContent='Uploaded ✓';try{const r=await fetch(imgUrl(inp.value),{method:'HEAD'});if(!r.ok)st.textContent='Uploaded, but NOT publicly readable: make bucket pavo-media Public (run the SQL), then retry.'}catch{}}catch(err){st.textContent='Upload failed: '+(err.message||err);i.value=''}finally{save.disabled=false}});
+   try{inp.value=await uploadImage(f,s.table,n==='cover_path'?1600:1000);st.textContent='Uploaded ✓';try{const r=await fetch(imgUrl(inp.value),{method:'HEAD'});if(!r.ok)st.textContent='Uploaded, but the photo is not publicly readable. Photo storage setup is incomplete (see Overview).'}catch{}}catch(err){st.textContent=upErr(err);i.value=''}finally{save.disabled=false}});
   $('#rm_'+n).addEventListener('click',()=>{inp.value='';i.value='';p.hidden=true;st.textContent=''})});
  $('#rf').onsubmit=async e=>{e.preventDefault();const fd=new FormData(e.currentTarget),row={};
   for(const [n,,t] of s.fields){if(t==='checkbox')row[n]=fd.has(n);else if(t==='number')row[n]=fd.get(n)===''?null:Number(fd.get(n));else if(t==='datetime-local')row[n]=fd.get(n)?new Date(fd.get(n)).toISOString():null;else row[n]=(fd.get(n)||'').trim()||null}
@@ -109,13 +118,21 @@ async function del(type,id){const s=SCH[type];if(!confirm(`Delete this ${s.title
 function drawAvail(){const k=($('#pSearch').value||'').toLowerCase(),used=new Set(placed.map(p=>p.player_id));
  $('#avail').innerHTML=players.filter(p=>p.is_active&&`${p.full_name_en||''} ${p.full_name_ar||''} ${p.shirt_number??''}`.toLowerCase().includes(k)).map(p=>{const u=imgUrl(p.photo_path),on=used.has(p.id);return `<button type="button" class="pick ${on?'used':''}" data-pick="${esc(p.id)}">${u?`<img class="thumb" draggable="false" src="${esc(u)}" alt="" onerror="this.remove()">`:''}<span>#${esc(p.shirt_number??'—')} ${esc(p.full_name_en||p.full_name_ar)}</span>${on?'<b>✓</b>':''}</button>`}).join('')||'<p class="muted">No active players.</p>';
  document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>togglePlayer(b.dataset.pick))}
+let targetSlot=null;
+const FPOS={'4-3-3':['GK','LB','CB','CB','RB','CM','CM','CM','LW','ST','RW'],'4-2-3-1':['GK','LB','CB','CB','RB','CDM','CDM','LW','CAM','RW','ST'],'4-4-2':['GK','LB','CB','CB','RB','LM','CM','CM','RM','ST','ST'],'3-5-2':['GK','CB','CB','CB','LWB','CM','CDM','CM','RWB','ST','ST']};
+const slots=()=>FORM[$('#formation').value]||FORM['4-3-3'];
+const near=(p,c)=>Math.hypot(p.x_position-c[0],(p.y_position-c[1])*.67)<4;
+const occupied=i=>placed.some(p=>near(p,slots()[i]));
 function togglePlayer(id){const ex=placed.find(p=>p.player_id===id);
  if(ex)placed=placed.filter(p=>p!==ex);
  else{if(placed.length>=11){toast('A line-up has at most 11 starters.');return}
-  const slots=FORM[$('#formation').value]||FORM['4-3-3'],taken=placed.map(p=>p.slot);let i=0;while(taken.includes(i)&&i<10)i++;const c=slots[i]||[50,50];
-  placed.push({player_id:id,slot:i,x_position:c[0],y_position:c[1],tactical_position:null})}
+  const sl=slots();let i=(targetSlot!==null&&!occupied(targetSlot))?targetSlot:sl.findIndex((_,k)=>!occupied(k));if(i<0)i=0;targetSlot=null;
+  placed.push({player_id:id,slot:i,x_position:sl[i][0],y_position:sl[i][1],tactical_position:null})}
  drawPitch();drawAvail()}
-function drawPitch(){const pitch=$('#adminPitch');pitch.querySelectorAll('.pitch-player').forEach(x=>x.remove());
+function drawPitch(){const pitch=$('#adminPitch'),sl=slots(),pos=FPOS[$('#formation').value]||[];
+ pitch.querySelectorAll('.pitch-player,.slot').forEach(x=>x.remove());
+ sl.forEach((c,i)=>{if(occupied(i))return;const b=document.createElement('button');b.type='button';b.className='slot'+(targetSlot===i?' sel':'');b.style.left=c[0]+'%';b.style.top=c[1]+'%';b.textContent=pos[i]||'';b.title='Tap, then choose a player from the list';
+  b.addEventListener('click',e=>{e.stopPropagation();targetSlot=targetSlot===i?null:i;drawPitch()});pitch.appendChild(b)});
  placed.forEach(pl=>{const p=players.find(x=>x.id===pl.player_id);if(!p)return;const u=imgUrl(p.photo_path),el=document.createElement('div');
   el.className='pitch-player'+(u?' has-photo':'');el.style.left=pl.x_position+'%';el.style.top=pl.y_position+'%';
   el.innerHTML=`<button class="x" type="button" aria-label="Remove">×</button><button class="cbtn ${pl.is_captain?'on':''}" type="button" aria-label="Captain">C</button><span class="mk"><span class="av">${u?`<img draggable="false" src="${esc(u)}" alt="">`:''}</span><span class="shirt">${esc(p.shirt_number??'')}</span></span><small>${esc(p.full_name_en||p.full_name_ar)}</small>`;
@@ -124,12 +141,17 @@ function drawPitch(){const pitch=$('#adminPitch');pitch.querySelectorAll('.pitch
   el.querySelector('.cbtn').addEventListener('click',e=>{e.stopPropagation();const was=pl.is_captain;placed.forEach(x=>x.is_captain=false);pl.is_captain=!was;drawPitch()});
   el.addEventListener('click',e=>e.stopPropagation());
   el.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('dragging');
-   const move=ev=>{const r=pitch.getBoundingClientRect();pl.x_position=Math.round(clamp((ev.clientX-r.left)/r.width*100,4,96));pl.y_position=Math.round(clamp((ev.clientY-r.top)/r.height*100,4,96));el.style.left=pl.x_position+'%';el.style.top=pl.y_position+'%'};
-   const up=()=>{el.classList.remove('dragging');el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);el.removeEventListener('pointercancel',up)};
+   const st={x:pl.x_position,y:pl.y_position,slot:pl.slot};let snap=null;const snapOn=()=>{const s=$('#snap');return !s||s.checked};
+   const move=ev=>{const r=pitch.getBoundingClientRect();let x=clamp((ev.clientX-r.left)/r.width*100,4,96),y=clamp((ev.clientY-r.top)/r.height*100,4,96);snap=null;
+    if(snapOn()){let best=6;sl.forEach((c,i)=>{const d=Math.hypot(c[0]-x,(c[1]-y)*.67);if(d<best){best=d;snap=i}});if(snap!==null){x=sl[snap][0];y=sl[snap][1]}}
+    pl.x_position=Math.round(x);pl.y_position=Math.round(y);el.style.left=pl.x_position+'%';el.style.top=pl.y_position+'%'};
+   const up=()=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);el.removeEventListener('pointercancel',up);
+    if(snap!==null){const c=sl[snap],o=placed.find(q=>q!==pl&&near(q,c));if(o){o.x_position=st.x;o.y_position=st.y;o.slot=st.slot}pl.slot=snap}
+    drawPitch();drawAvail()};
    el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);move(e)});
   pitch.appendChild(el)})}
 function pitchClick(){}
-function applyFormation(){const c=FORM[$('#formation').value]||FORM['4-3-3'];placed.forEach((p,i)=>{p.slot=i;if(c[i]){p.x_position=c[i][0];p.y_position=c[i][1]}});drawPitch()}
+function applyFormation(){targetSlot=null;const c=FORM[$('#formation').value]||FORM['4-3-3'];placed.forEach((p,i)=>{p.slot=i;if(c[i]){p.x_position=c[i][0];p.y_position=c[i][1]}});drawPitch()}
 async function loadLineup(){const id=$('#lnSaved').value;const lp=lineups.find(l=>l.id===id);if(!lp){toast('Choose a saved line-up first.');return}
  const {data,error}=await supabaseClient.from('lineup_players').select('*').eq('lineup_id',id).order('sort_order');if(error){toast(error.message);return}
  activeId=id;placed=(data||[]).filter(r=>players.some(p=>p.id===r.player_id)).map((r,i)=>({slot:i,player_id:r.player_id,x_position:Number(r.x_position),y_position:Number(r.y_position),tactical_position:r.tactical_position,is_captain:!!r.is_captain}));
@@ -141,7 +163,7 @@ async function saveLineup(status){
  if(activeId){const {error}=await supabaseClient.from('lineups').update(row).eq('id',activeId);if(error){msg(error.message);return}}
  else{const {data,error}=await supabaseClient.from('lineups').insert(row).select().single();if(error){msg(error.message);return}activeId=data.id}
  const {error:de}=await supabaseClient.from('lineup_players').delete().eq('lineup_id',activeId);if(de){msg(de.message);return}
- const {error:ie}=await supabaseClient.from('lineup_players').insert(placed.map((p,i)=>({lineup_id:activeId,player_id:p.player_id,x_position:p.x_position,y_position:p.y_position,tactical_position:p.tactical_position,is_starter:true,is_captain:!!p.is_captain,sort_order:i})));
+ const {error:ie}=await supabaseClient.from('lineup_players').insert(placed.map((p,i)=>({lineup_id:activeId,player_id:p.player_id,x_position:p.x_position,y_position:p.y_position,tactical_position:(FPOS[$('#formation').value]||[])[p.slot]||p.tactical_position||null,is_starter:true,is_captain:!!p.is_captain,sort_order:i})));
  if(ie){msg('Players were not saved: '+ie.message);return}
  if(status==='published')await supabaseClient.from('lineups').update({is_current:false}).neq('id',activeId).eq('is_current',true);
  msg(status==='published'?'Published.':'Draft saved.');toast(status==='published'?'Line-up published':'Draft saved');await loadAll();$('#lnSaved').value=activeId}
