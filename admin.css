@@ -63,3 +63,9 @@ fieldset{border:1px solid var(--line);border-radius:10px;padding:14px;display:gr
  .available{flex-direction:row;overflow-x:auto;max-height:none;padding-bottom:6px}.pick{flex:none}
  .lineup-actions{position:sticky;bottom:78px;z-index:30;background:#0a1928f2;padding:10px;border:1px solid var(--line);border-radius:12px}.lineup-actions .btn{flex:1 1 40%}
 }
+
+@media(min-width:900px){#dashboard>#health{grid-column:2}}
+.health{list-style:none;padding:0;margin:12px 0;display:grid;gap:10px}.health li{display:flex;gap:10px;align-items:flex-start}.health b{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:13px;flex:none}.health .ok b{background:#1f6f45}.health .warn b{background:#b7791f}.health small{display:block;color:var(--muted)}#health h2{font-size:22px}
+
+.slot{position:absolute;transform:translate(-50%,-50%);width:clamp(30px,5.5vw,44px);aspect-ratio:1;border-radius:50%;border:2px dashed #ffffffb0;background:#ffffff1f;color:#fff;font:600 10px Arial;cursor:pointer;z-index:1;padding:0}
+.slot.sel{border-color:var(--gold2);background:#f0c96a66;box-shadow:0 0 0 4px #f0c96a44}
