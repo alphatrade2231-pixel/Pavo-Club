@@ -21,6 +21,10 @@ const S={players:[],matches:[],news:[],lineup:null,settings:{},ok:{}};
 const pick=(r,b)=>r?.[`${b}_${lang}`]||r?.[`${b}_${lang==='ar'?'en':'ar'}`]||'';
 const fmt=(d,o)=>{try{return d?new Date(d).toLocaleString(lang==='ar'?'ar-EG':'en-GB',o):''}catch{return ''}};
 const imgUrl=p=>{if(!p)return '';if(/^https?:\/\//i.test(p))return p;try{return supabaseClient.storage.from('pavo-media').getPublicUrl(p).data.publicUrl}catch{return ''}};
+function videoHtml(v,poster){if(!v)return '';const yt=v.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/),vm=v.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+ if(yt)return `<div class="video-wrap"><iframe src="https://www.youtube-nocookie.com/embed/${yt[1]}" title="Video" loading="lazy" allow="encrypted-media;picture-in-picture;fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+ if(vm)return `<div class="video-wrap"><iframe src="https://player.vimeo.com/video/${vm[1]}" title="Video" loading="lazy" allow="picture-in-picture;fullscreen" allowfullscreen></iframe></div>`;
+ const u=imgUrl(v);return u?`<video class="news-video" controls playsinline preload="metadata" ${poster?`poster="${esc(poster)}"`:''} src="${esc(u)}"></video>`:''}
 const safeUrl=u=>/^https?:\/\//i.test(u||'')?u:'';
 async function q(table,sel,build){try{let r=supabaseClient.from(table).select(sel);if(build)r=build(r);const {data,error}=await r;if(error)throw error;return data||[]}catch(e){console.error('PAVO',table,e.message||e);return null}}
 async function load(){
@@ -40,7 +44,7 @@ const photo=(path,alt)=>{const u=imgUrl(path);return u?`<img loading="lazy" src=
 function playerCard(p){const n=pick(p,'full_name');return `<article class="card"><div class="player-visual">${photo(p.photo_path,n)}<span class="number">${esc(p.shirt_number??'')}</span></div><div class="card-body"><span class="tag">${esc(tr('pos')[p.position]||p.position||'')}</span><h3>${esc(n)}</h3><p>${esc(pick(p,'nationality'))}</p><p>${esc(pick(p,'bio'))}</p></div></article>`}
 function matchCard(m){const o=pick(m,'opponent_name');const sc=m.status!=='scheduled'&&m.home_score!=null?`${m.home_score} - ${m.away_score??0}`:'VS';
  return `<article class="card match-card"><div class="match-meta"><span>${esc(pick(m,'competition'))}</span><span>${esc(fmt(m.kickoff_at,{dateStyle:'medium',timeStyle:'short'}))}</span></div><div class="scoreline"><span>PAVO</span><span class="score">${esc(sc)}</span><span>${esc(o)}</span></div><div class="match-bottom"><span>${esc(pick(m,'venue'))}</span><span class="status ${esc(m.status)}">${esc(tr('status')[m.status]||m.status)}</span></div></article>`}
-function newsCard(n){const t=pick(n,'title');return `<a class="card" href="#news/${encodeURIComponent(n.slug)}"><div class="news-image">${photo(n.cover_path,t)}</div><div class="card-body"><span class="eyebrow">${esc(pick(n,'category'))}</span><h3>${esc(t)}</h3><p>${esc(pick(n,'summary'))}</p><p>${esc(fmt(n.published_at,{dateStyle:'medium'}))}</p></div></a>`}
+function newsCard(n){const t=pick(n,'title');return `<a class="card" href="#news/${encodeURIComponent(n.slug)}"><div class="news-image">${photo(n.cover_path,t)}${n.video_path?'<span class="play" aria-label="Video">▶</span>':''}</div><div class="card-body"><span class="eyebrow">${esc(pick(n,'category'))}</span><h3>${esc(t)}</h3><p>${esc(pick(n,'summary'))}</p><p>${esc(fmt(n.published_at,{dateStyle:'medium'}))}</p></div></a>`}
 function pitch(lp){const pl=(lp.lineup_players||[]).filter(x=>x.players&&x.is_starter!==false);
  const mk=pl.map(x=>{const p=x.players,c=v=>Math.max(4,Math.min(96,Number(v)||50)),n=pick(p,'full_name'),u=imgUrl(p.photo_path);
   return `<div class="pitch-player ${u?'has-photo':''}" style="left:${c(x.x_position)}%;top:${c(x.y_position)}%"><span class="mk"><span class="av">${u?`<img loading="lazy" src="${esc(u)}" alt="${esc(n)}" onerror="this.parentNode.parentNode.parentNode.classList.remove('has-photo');this.remove()">`:''}</span><span class="shirt">${esc(p.shirt_number??'')}</span></span><small>${esc(n)}</small></div>`}).join('');
@@ -51,13 +55,7 @@ const done=()=>S.matches.filter(m=>!['scheduled','live'].includes(m.status)).rev
 const grid=(arr,fn,key,e)=>arr.length?`<div class="cards">${arr.map(fn).join('')}</div>`:state(key,0,e);
 const list=(x)=>x?String(x).split(/\n+/).map(s=>`<p>${esc(s)}</p>`).join(''):'';
 const VIEWS={
- home:()=>{const c=S.settings.club||{};return `<div class="container"><section class="hero"><div><div class="eyebrow">PAVO CLUB</div><h1>${tr('heroT')}</h1><p>${tr('heroP')}</p><div class="hero-actions"><a class="btn btn-gold" href="#players">${tr('explore')}</a><a class="btn btn-outline" href="#matches">${tr('matches')}</a></div></div><div class="hero-emblem" aria-hidden="true">
-  <img
-    class="hero-logo"
-    src="pavo%20logo.jpg.jpeg"
-    alt=""
-  >
-</div>
+ home:()=>{const c=S.settings.club||{},hs=S.settings.hero||{};return `<div class="container"><section class="hero"><div><div class="eyebrow">PAVO CLUB</div><h1>${pick(hs,'title')?esc(pick(hs,'title')).replace(/\n/g,'<br>'):tr('heroT')}</h1><p>${pick(hs,'text')?esc(pick(hs,'text')):tr('heroP')}</p><div class="hero-actions"><a class="btn btn-gold" href="#players">${tr('explore')}</a><a class="btn btn-outline" href="#matches">${tr('matches')}</a></div></div><div class="hero-emblem" aria-hidden="true">P</div></section>
  <section class="section">${head(tr('latest'),'news')}${grid(S.news.slice(0,3),newsCard,'news','emptyN')}</section>
  <section class="section">${head(tr('upcoming'),'matches')}${grid(upc().slice(0,3),matchCard,'matches','emptyM')}</section>
  <section class="section">${head(tr('squad'),'players')}${grid(S.players.slice(0,4),playerCard,'players','emptyP')}</section>
@@ -70,7 +68,7 @@ const VIEWS={
  lineup:()=>`<div class="container section">${head(tr('lineupT'))}${lineupBlock()}</div>`,
  news:(slug)=>{if(!slug)return `<div class="container section">${head(tr('news'))}${grid(S.news,newsCard,'news','emptyN')}</div>`;
   const n=S.news.find(x=>x.slug===slug);if(!n)return `<div class="container section"><a class="btn btn-outline" href="#news">${tr('back')}</a><div class="state" style="margin-top:20px">${S.ok.news?tr('notFound'):tr('err')}</div></div>`;
-  return `<div class="container section"><article class="article"><a class="btn btn-outline" href="#news">${tr('back')}</a><p class="eyebrow" style="margin-top:22px">${esc(pick(n,'category'))} ${esc(fmt(n.published_at,{dateStyle:'medium'}))}</p><h1>${esc(pick(n,'title'))}</h1>${photo(n.cover_path,pick(n,'title'))}${list(pick(n,'content')||pick(n,'summary'))}</article></div>`}};
+  return `<div class="container section"><article class="article"><a class="btn btn-outline" href="#news">${tr('back')}</a><p class="eyebrow" style="margin-top:22px">${esc(pick(n,'category'))} ${esc(fmt(n.published_at,{dateStyle:'medium'}))}</p><h1>${esc(pick(n,'title'))}</h1>${n.video_path?videoHtml(n.video_path,imgUrl(n.cover_path)):photo(n.cover_path,pick(n,'title'))}${list(pick(n,'content')||pick(n,'summary'))}</article></div>`}};
 function render(){
  document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
  $('#languageToggle').textContent=lang==='ar'?'English':'عربي';
