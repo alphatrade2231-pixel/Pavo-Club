@@ -1,8 +1,8 @@
 const $=s=>document.querySelector(s);
 // Front-end-only login. Change these two values before publishing.
 // This is only a visual gate; Supabase RLS still controls database writes.
-const LOCAL_ADMIN_USERNAME='admin@pavo.local';
-const LOCAL_ADMIN_PASSWORD='Pavo@2026!';
+const LOCAL_ADMIN_USERNAME='pavoac.1@gmail.com';
+const LOCAL_ADMIN_PASSWORD='101199';
 function setMessage(s){const el=$('#loginMessage');if(el)el.textContent=s}
 function showLogin(){const d=$('#dashboard'),l=$('#loginPanel'),b=$('#logoutBtn');if(d)d.hidden=true;if(l)l.hidden=false;if(b)b.hidden=true;currentUser=null;profile=null}
 function showDashboard(){currentUser={email:LOCAL_ADMIN_USERNAME};profile={role:'super_admin',display_name:'PAVO Admin'};$('#loginPanel').hidden=true;$('#dashboard').hidden=false;$('#logoutBtn').hidden=false;$('#roleTag').textContent='LOCAL ADMIN';$('#welcomeText').textContent='Signed in as PAVO Admin'}
