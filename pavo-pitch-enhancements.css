@@ -1,0 +1,17 @@
+/* PAVO tactical pitch: append this block to the END of style.css and admin.css */
+.pitch-wrap{width:100%;overflow-x:auto;padding:8px 0 14px}
+.pitch.pitch-pro{position:relative;isolation:isolate;width:100%;min-width:620px;aspect-ratio:1.58;min-height:390px;overflow:hidden;border:3px solid rgba(255,255,255,.9);border-radius:14px;background:repeating-linear-gradient(90deg,#17683f 0%,#17683f 12.5%,#1d7548 12.5%,#1d7548 25%);box-shadow:0 16px 38px rgba(0,0,0,.24)}
+.pitch-markings{position:absolute;inset:14px;border:2px solid rgba(255,255,255,.82);pointer-events:none}
+.pitch-markings:after{content:"";position:absolute;top:0;bottom:0;left:50%;border-left:2px solid rgba(255,255,255,.82)}
+.pitch-circle{position:absolute;left:50%;top:50%;width:18%;aspect-ratio:1;transform:translate(-50%,-50%);border:2px solid rgba(255,255,255,.82);border-radius:50%;pointer-events:none}
+.pitch-box{position:absolute;top:25%;height:50%;width:14%;border:2px solid rgba(255,255,255,.82)}
+.pitch-box-left{left:-2px;border-left:0}.pitch-box-right{right:-2px;border-right:0}
+.pitch-goal{position:absolute;top:39%;height:22%;width:2.5%;border:2px solid rgba(255,255,255,.82)}
+.pitch-goal-left{left:-2px;border-left:0}.pitch-goal-right{right:-2px;border-right:0}
+.pitch-player{position:absolute;z-index:3;display:flex;flex-direction:column;align-items:center;gap:4px;width:92px;transform:translate(-50%,-50%);text-align:center;cursor:default}
+.pitch-avatar-wrap{position:relative;width:54px;height:54px;flex:0 0 54px;border-radius:50%;border:2px solid #f4c75b;background:#14231c;box-shadow:0 3px 12px rgba(0,0,0,.45)}
+.pitch-avatar{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover;background:#1e3b2c}
+.pitch-avatar-fallback{display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px}
+.pitch-player .shirt{position:absolute;right:-5px;bottom:-4px;display:flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 4px;border:2px solid #fff;border-radius:999px;background:#e7b849;color:#14231c;font-size:11px;font-weight:900;line-height:1}
+.pitch-player-name{display:block;max-width:92px;overflow:hidden;padding:3px 7px;border:1px solid rgba(255,255,255,.18);border-radius:6px;background:rgba(7,19,13,.88);color:#fff;font-size:11px;font-weight:700;line-height:1.25;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 2px #000}
+@media(max-width:700px){.pitch.pitch-pro{min-width:580px;min-height:360px}.pitch-player{width:78px}.pitch-avatar-wrap{width:46px;height:46px;flex-basis:46px}.pitch-player-name{max-width:78px;font-size:10px}}
